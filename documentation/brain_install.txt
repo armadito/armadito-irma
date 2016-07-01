@@ -1,0 +1,204 @@
+
+:: IRMA Manual Installation procedure (BRAIN) ::
+
+This tutorial describe the procedure for a manual installation of irma-brain component.
+This procedure has been tested on Debian wheezy x64.
+
+Date: 01/07/2016
+
+source: https://irma.readthedocs.io/en/latest/intro/index.html
+
+
+----------------------------
+- CONFIGURATION PARAMETERS -
+----------------------------
+
+# /!\ This are default parameters and should be changed.
+
+# IRMA_INSTALL_DIR	= /opt/irma
+# BRAIN_INST_DIR 	= /opt/irma/irma-brain
+# FRONTEND_INST_DIR = /opt/irma/irma-frontend
+# PROBE_INST_DIR 	= /opt/irma/irma-probe
+
+# IRMA_USER			= irma
+# IRMA_GROUP		= irma
+
+# MQ_BRAIN_USER		= brain
+# MQ_BRAIN_PWD		= brain
+# MQ_BRAIN_VHOST	= mqbrain
+
+# MQ_FRONTEND_USER	= frontend
+# MQ_FRONTEND_PWD	= frontend
+# MQ_FRONTEND_VHOST	= mqfrontend
+
+# MQ_PROBE_USER		= probe
+# MQ_PROBE_PWD		= probe
+# MQ_PROBE_VHOST	= mqprobe
+
+# FTP_PROBE_USER	= probe
+# FTP_PROBE_PWD		= probe
+
+# FTP_FRONTEND_USER	= frontend
+# FTP_FRONTEND_PWD	= frontend
+
+
+----------------------
+- BRAIN INSTALLATION -
+----------------------
+
+## Installing and configuring rabbitMQ
+
+> sudo apt-get install rabbitmq-server
+
+# Create users and vhosts for brain frontend and probe.
+# user=brain 	- password=brain - vhost=mqbrain
+# user=frontend - password=brain - vhost=mqfrontend
+# user=probe 	- password=brain - vhost=mqbrain
+
+> sudo rabbitmqctl add_user <username> <password>
+> sudo rabbitmqctl add_vhost <vhostname>
+> sudo rabbitmqctl set_permissions -p <vhostname> <username> ".*" ".*" ".*"
+
+
+# Verify RabbitMQ configuration
+> sudo rabbitmqctl list_vhosts
+> sudo rabbitmqctl list_users
+
+
+# restarting the RabbitMQ service
+> sudo invoke-rc.d rabbitmq-server restart
+
+
+## Installing and configuring sftp.
+
+> sudo apt-get install openssh-server
+
+# Edit ssh server configuration file /etc/ssh/sshd_config
+# add lines
+#
+# UsePAM yes
+#
+# Subsystem sftp internal-sftp
+# Match User frontend
+#  AllowTcpForwarding no
+#  ChrootDirectory /sftp/frontend
+#  ForceCommand internal-sftp -u 2
+#  PermitTunnel no
+#  X11Forwarding no
+#  
+# Match User probe
+#  AllowTcpForwarding no
+#  ChrootDirectory /sftp
+#  ForceCommand internal-sftp -u 2
+#  PermitTunnel no
+#  X11Forwarding no
+
+
+# Create sftp specific users and group
+# group = ftpgroup
+# users = probe & frontend
+
+> sudo groupadd ftpgroup
+> sudo useradd -g ftpgroup -d /home/probe -s /bin/false probe
+> sudo passwd probe
+
+> sudo useradd -g ftpgroup -d /home/frontend -s /bin/false frontend
+> sudo passwd frontend
+
+
+# Create sftp chroot directory.
+
+> sudo mkdir -p /sftp/frontend/uploads
+> sudo chown frontend:ftpgroup /sftp/frontend/uploads
+> sudo chmod 775 /sftp/frontend/uploads
+
+
+# Restart ssh(sftp) service
+> sudo service ssh restart
+
+
+# Check sftp configuration.
+> sftp probe@brain.irma (passwd = probe)
+> sftp frontend@brain.irma (passwd = frontend)
+
+
+## Brain installation
+
+
+# Install prerequisites
+
+> sudo apt-get install git
+> sudo apt-get install python2.7
+> sudo apt-get install build-essential libssl-dev libffi-dev python-dev
+
+# pip install (https://pip.pypa.io/en/latest/installing/)
+> wget https://bootstrap.pypa.io/get-pip.py
+> sudo python get-pip.py
+
+
+# Create user (and group) executing the python script
+# user  = irma 
+# group = irma
+> sudo adduser --system --no-create-home --group irma
+
+# Download source code from github
+> sudo git clone --recursive https://github.com/quarkslab/irma-brain /opt/irma/irma-brain
+
+# Install python dependencies
+> cd /opt/irma/irma-brain
+> pip install -r /opt/irma/irma-brain/requirements.txt
+
+
+# generate SQLite database for scan tracking.
+> sudo python -m scripts.create_user frontend mqfrontend frontend 0
+
+
+# change permission for the folder containing the sqlite database.
+> chown irma:irma /var/irma/db/brain.db
+> chown irma:irma /var/irma/db
+
+
+
+# check configuration file (with information defined in configuration section)
+# edit file /opt/irma/irma-brain/brain.ini
+> vi /opt/irma/irma-brain/brain.ini
+
+# Check brain installation.
+> sudo -u irma celery worker --app=brain.tasks:scan_app --workdir=/opt/irma/irma-brain
+
+
+## Running brain at startup.
+
+> cd /opt/irma/irma-brain
+> sudo cp extras/init.d/celeryd.brain /etc/init.d/celeryd.brain
+> sudo cp extras/init.d/celeryd.results /etc/init.d/celeryd.results
+> sudo cp extras/default/celeryd.brain /etc/default/celeryd.brain
+> sudo cp extras/default/celeryd.results /etc/default/celeryd.results
+
+
+# Edit files /etc/default/celery.brain  and /etc/default/celery.results
+# check parameters according to information in "configuration" section.
+> vi /etc/default/celery.brain
+> vi /etc/default/celery.results
+
+# Fix file permissions
+
+> sudo chmod u+x /etc/init.d/celeryd.brain
+> sudo chmod u+x /etc/init.d/celeryd.results
+> sudo update-rc.d celeryd.brain defaults
+> sudo update-rc.d celeryd.results defaults
+
+
+# restart celery daemon for brain.
+> sudo invoke-rc.d celeryd.brain start
+> sudo invoke-rc.d celeryd.results start
+
+
+## The installation of irma-brain is finished !
+
+# You can check log files:
+# cat /var/log/celery/brain.log
+# cat /var/log/celery/results.log
+
+
+#end.

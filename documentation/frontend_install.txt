@@ -1,0 +1,165 @@
+
+:: IRMA Manual Installation procedure (FRONTEND) ::
+
+This tutorial describe the procedure for a manual installation of irma-frontend component.
+This procedure has been tested on Debian wheezy x64.
+
+Date: 01/07/2016
+
+source: https://irma.readthedocs.io/en/latest/intro/index.html
+
+
+----------------------------
+- CONFIGURATION PARAMETERS -
+----------------------------
+
+# /!\ This are default parameters and should be changed.
+
+# IRMA_INSTALL_DIR	= /opt/irma
+# BRAIN_INST_DIR 	= /opt/irma/irma-brain
+# FRONTEND_INST_DIR = /opt/irma/irma-frontend
+# PROBE_INST_DIR 	= /opt/irma/irma-probe
+
+# IRMA_USER			= irma
+# IRMA_GROUP		= irma
+
+# MQ_BRAIN_USER		= brain
+# MQ_BRAIN_PWD		= brain
+# MQ_BRAIN_VHOST	= mqbrain
+
+# MQ_FRONTEND_USER	= frontend
+# MQ_FRONTEND_PWD	= frontend
+# MQ_FRONTEND_VHOST	= mqfrontend
+
+# MQ_PROBE_USER		= probe
+# MQ_PROBE_PWD		= probe
+# MQ_PROBE_VHOST	= mqprobe
+
+# FTP_PROBE_USER	= probe
+# FTP_PROBE_PWD		= probe
+
+# FTP_FRONTEND_USER	= frontend
+# FTP_FRONTEND_PWD	= frontend
+
+
+-------------------------
+- FRONTEND INSTALLATION -
+-------------------------
+
+##  Install prerequisites: (python2.7.x and python-pip)
+> sudo apt-get install git
+> sudo apt-get install curl
+> sudo apt-get install python2.7
+
+# pip install (https://pip.pypa.io/en/latest/installing/)
+> wget https://bootstrap.pypa.io/get-pip.py
+> sudo python get-pip.py
+
+# create IRMA_USER and IRMA_GROUP.
+# user  = irma 
+# group = irma
+> sudo adduser --system --no-create-home --group irma
+
+
+## Frontend Installation
+
+# Get source code from github.
+> sudo git clone --recursive https://github.com/quarkslab/irma-frontend /opt/irma/irma-frontend
+
+# Install dependencies.
+> apt-get install libpq-dev
+> sudo pip install -r /opt/irma/irma-frontend/requirement.txt
+> pip install psycopg2
+
+# building the web client
+> sudo curl -sL https://deb.nodesource.com/setup | sudo bash -
+> sudo apt-get install -y nodejs
+> curl -sL https://www.npmjs.org/install.sh | sudo bash -
+
+> cd irma-frontend/web
+> sudo npm install
+> sudo node_modules/.bin/bower install --allow-root
+> node_modules/.bin/gulp dist
+
+
+## Configuration
+
+# edit configuration file /opt/irma/irma-frontend/config/frontend.ini
+# [sqldb]
+# dbms = postgresql
+# dialect = psycopg2
+> vi /opt/irma/irma-frontend/config/frontend.ini
+
+
+
+# Create default path for samples
+> mkdir /var/irma/samples
+> chown irma:irma /var/irma/samples
+
+
+## Running Frontend worker at startup.
+
+# Installing the celery service.
+> sudo cp extras/init.d/celeryd.frontend /etc/init.d/celeryd.frontend
+> sudo cp extras/default/celeryd.frontend /etc/default/celeryd.frontend
+
+
+## Installing SQL server
+
+# edit file apt source list file : /etc/apt/source.list
+# add line
+# deb http://apt.postgresql.org/pub/repos/apt/ wheezy-pgdg main
+> echo "deb http://apt.postgresql.org/pub/repos/apt/ wheezy-pgdg main" >> /etc/apt/source.list
+
+
+# add repository key 
+> wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+> sudo apt-get update
+> sudo apt-get install postgresql
+
+# Create database for irma.
+> su postgres 
+> psql -c "CREATE USER irma WITH PASSWORD 'irma'"
+> psql -c "CREATE DATABASE irma-frontend WITH OWNER postgres"
+> exit
+
+
+## Installing and configuring uWsgi
+
+> sudo apt-get install uwsgi uwsgi-plugin-python
+
+# Configuration
+> cd /opt/irma-frontend
+> sudo cp extras/uwsgi/frontend-api.xml /etc/uwsgi/apps-available/
+> sudo vi /etc/uwsgi/apps-available/frontend-api.xml
+
+> sudo ln -s /etc/uwsgi/apps-available/frontend-api.xml /etc/uwsgi/apps-enabled/frontend-api.xml
+
+
+# Relaunch the service
+> sudo invoke-rc.d uwsgi restart
+
+
+## Installing and configuring nginx.
+
+> sudo apt-get install nginx
+
+# Configuration
+> cd /opt/irma-frontend
+> sudo cp extras/nginx/frontend /etc/nginx/sites-available/
+> sudo ln -s /etc/nginx/sites-available/frontend /etc/nginx/sites-enabled/frontend
+
+
+# Relaunch nginx service
+> sudo invoke-rc nginx restart
+
+# Check irma-frontend Installation.
+> sudo -u irma celery worker --app=frontend.tasks:frontend_app
+
+## The installation of irma-frontend is finished !
+
+# You can check log file:
+# cat /var/log/celery/frontend.log
+
+
+#end.

@@ -1,0 +1,107 @@
+
+:: IRMA Manual Installation procedure (PROBE) ::
+
+This tutorial describe the procedure for a manual installation of irma-probe component.
+This procedure has been tested on Debian wheezy x64.
+
+Date: 01/07/2016
+
+source: https://irma.readthedocs.io/en/latest/intro/index.html
+
+
+----------------------------
+- CONFIGURATION PARAMETERS -
+----------------------------
+
+# /!\ This are default parameters and should be changed.
+
+# IRMA_INSTALL_DIR	= /opt/irma
+# BRAIN_INST_DIR 	= /opt/irma/irma-brain
+# FRONTEND_INST_DIR = /opt/irma/irma-frontend
+# PROBE_INST_DIR 	= /opt/irma/irma-probe
+
+# IRMA_USER			= irma
+# IRMA_GROUP		= irma
+
+# MQ_BRAIN_USER		= brain
+# MQ_BRAIN_PWD		= brain
+# MQ_BRAIN_VHOST	= mqbrain
+
+# MQ_FRONTEND_USER	= frontend
+# MQ_FRONTEND_PWD	= frontend
+# MQ_FRONTEND_VHOST	= mqfrontend
+
+# MQ_PROBE_USER		= probe
+# MQ_PROBE_PWD		= probe
+# MQ_PROBE_VHOST	= mqprobe
+
+# FTP_PROBE_USER	= probe
+# FTP_PROBE_PWD		= probe
+
+# FTP_FRONTEND_USER	= frontend
+# FTP_FRONTEND_PWD	= frontend
+
+
+----------------------
+- PROBE INSTALLATION -
+----------------------
+
+
+##  Install prerequisites: (python2.7.x and python-pip)
+> sudo apt-get install git
+> sudo apt-get install curl
+> sudo apt-get install python2.7
+
+# pip install (https://pip.pypa.io/en/latest/installing/)
+> wget https://bootstrap.pypa.io/get-pip.py
+> sudo python get-pip.py
+
+# create IRMA_USER and IRMA_GROUP.
+# user  = irma 
+# group = irma
+> sudo adduser --system --no-create-home --group irma
+
+
+# Donwload source code from github
+> sudo git clone --recursive https://github.com/quarkslab/irma-probe
+
+
+# Installation on GNU/Linux
+# pip install irma-probe-app-1.1.0.tar.gz --install-option="--install-base=/opt/irma/irma-probe"
+
+> sudo pip install /opt/irma/irma-probe/requirements.txt
+
+
+## enabling analyzers
+
+# clamav
+> sudo apt-get install clamav-daemon
+> sudo freshclam
+> service clamav-daemon restart
+
+# TODO: Others analyzer
+# ...
+
+
+## Running probe at startup
+
+# Installing the service
+> sudo cp extras/init.d/celeryd.probe /etc/init.d/celeryd.probe
+> sudo cp extras/default/celeryd.probe /etc/default/celeryd.probe
+
+# Registering the service
+> sudo chmod u+x /etc/init.d/celeryd.probe
+> sudo update-rc.d celeryd.probe defaults
+
+
+# Start celery daemon for probe
+> sudo invoke-rc.d celeryd.probe start
+
+
+## The installation of irma-probe is finished !
+
+# You can check log file:
+# cat /var/log/celery/probe.log
+
+
+#end.
