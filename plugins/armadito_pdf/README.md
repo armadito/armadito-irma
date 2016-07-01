@@ -8,18 +8,16 @@ What is it?
 Armadito-pdf is a plugin for IRMA (http://irma.quarkslab.com/) based on Armadito PDF module.
 
 Armadito PDF module is an heuristic module for PDF documents analysis.
+
 Armadito-mod-pdf source code is available at: https://github.com/armadito/armadito-mod-pdf
 
 
 Prerequisites
 -------------
 
-- IRMA (brain - frontend - probe)
+- IRMA (probe)
 	- sources:
-		brain : 	https://github.com/quarkslab/irma-brain
-		frontend: 	https://github.com/quarkslab/irma-frontend
-		probe: 		https://github.com/quarkslab/irma-probe
-	 
+		- probe:	https://github.com/quarkslab/irma-probe
 	
 - Armadito-mod-pdf
 	- source: https://github.com/armadito/armadito-mod-pdf
@@ -31,6 +29,7 @@ Author(s)
 * Ulrich FAUSTHER <ufausther@teclib.com>
 
 Copyright (c) 2013-2016 Quarkslab.
+
 Copyright (C) Teclib', 2016
 
 
